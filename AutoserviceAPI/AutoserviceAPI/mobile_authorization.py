@@ -1,9 +1,9 @@
-from AutoserviceAPI import app, db, allowed_file, login_manager, start_verification, check_verification
-from flask import Flask, url_for, redirect, render_template, request, abort
-from AutoserviceAPI.model import User
+from AutoserviceAPI import app, db, allowed_file, login_manager, start_verification, check_verification, user_datastore
+from flask import Flask, url_for, redirect, render_template, request, abort, jsonify
+from AutoserviceAPI.model import User, Role, City, Category
 from flask_login import login_user, logout_user, login_required
 from flask_jwt_extended import create_access_token, jwt_required, get_jwt_identity
-
+from werkzeug.security import generate_password_hash, check_password_hash
 
 @app.route('/signin', methods=['POST'])
 def signin():
@@ -30,7 +30,7 @@ def signup():
     email = request.form.get('email')
     password = request.form.get('password')
     phone = request.form.get('phone')
-    
+    avatar = request.form.get('avatar')
     about = request.form.get('about')
     category_id = request.form.get('category_id')
     city_id = request.form.get('city_id')
@@ -41,20 +41,36 @@ def signup():
     if user:
         return jsonify(msg = 'Email address already exists.'), 400
 
-    avatar = 'noavatar.jpg'
+    user = User.query.filter_by(phone=phone).first()
+    if user:
+        return jsonify(msg = 'Phone adress already exists.'), 400
 
-    if 'file' in request.files:
-        file = request.files['file']
+    if avatar == "":
+        avatar = 'noavatar.jpg'
 
-        if file and allowed_file(file.filename) and file.filename != '':
-            filename = secure_filename(file.filename)
-            avatar = file.filename
-            file.save(os.path.join(app.config['UPLOAD_FOLDER'], filename))
+    user_role = Role(name='customer')
+    cid = []
+    caid = []
+    if roles == 1:
+        user_role = Role (name='executor') 
+        cid = [City.query.filter_by(id = city_id).first()]
+        caid = [City.query.filter_by(id = category_id).first()]
 
-    new_user = User(email=email, name=name, password=generate_password_hash(password, method='sha256'), phone=phone, avatar=avatar, about=about, category_id = category_id, city_id = city_id, roles=roles)
+    new_user = user_datastore.create_user(
+        email=email, 
+        name=name, 
+        password=generate_password_hash(password, method='sha256'), 
+        phone=phone, 
+        avatar=avatar, 
+        about=about, 
+        category_id = caid, 
+        city_id = cid, 
+        roles=[user_role]
+    )
 
+    print("Phone : %s", phone)
     
-    vsid = start_verification(phone)
+    start_verification(phone)
     session['phone'] = phone
 
     db.session.add(new_user)
@@ -62,14 +78,20 @@ def signup():
 
     return jsonify(msg ="User Created"),200
 
-@app.route('/uploads/<filename>')
+@app.route('/load_file', methods=["PUT"])
+def load_file():
+    for file in request.files:
+        if file and allowed_file(file.filename) and file.filename != '':
+            filename = secure_filename(file.filename)
+            file.save(os.path.join(app.config['UPLOAD_FOLDER'], filename))
+
+@app.route('/uploads/<filename>', methods=["GET"])
 def uploaded_file(filename):
     return send_from_directory(app.config['UPLOAD_FOLDER'],
                                filename)
 
 @app.route('/verify', methods=["POST"])
 def verify():
-    email = session.get('email')
     phone = session.get('phone')
     code = request.form['code']
     user = User.query.filter_by(email=email).first()
@@ -84,11 +106,9 @@ def verify():
 
 @app.route('/resend', methods=["POST"])
 def resend():
-    email = session.get('email')
     phone = session.get('phone')
-    code = request.form['code']
 
-    user = User.query.filter_by(email=email).first()
+    user = User.query.filter_by(phone=phone).first()
     if not user:
         return jsonify(msg = 'Please check your login details and try again.'), 401
     
@@ -98,13 +118,13 @@ def resend():
 
 @app.route("/reset_password", methods=["POST"])
 def reset_password():
-    email = request.form.get('email')
+    phone = request.form.get('phone')
     password = request.form.get('password')
 
-    user = User.query.filter_by(email=email).first()
+    user = User.query.filter_by(phone=phone).first()
     
-    if user:
-        return jsonify(msg = 'Email address already exists.'), 400
+    if not user:
+        return jsonify(msg = 'Now User with this phone number'), 400
 
     user.password = generate_password_hash(password, method='sha256')
 

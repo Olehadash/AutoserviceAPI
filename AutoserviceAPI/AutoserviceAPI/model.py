@@ -18,6 +18,18 @@ roles_users = db.Table(
     db.Column('role_id', db.Integer(), db.ForeignKey('role.id'))
 )
 
+users_city = db.Table(
+    'users_city',
+    db.Column('user_id', db.Integer(), db.ForeignKey('user.id')),
+    db.Column('city_id', db.Integer(), db.ForeignKey('city.id'))
+)
+
+users_category = db.Table(
+    'users_category',
+    db.Column('user_id', db.Integer(), db.ForeignKey('user.id')),
+    db.Column('category_id', db.Integer(), db.ForeignKey('category.id'))
+)
+
 
 class Role(db.Model, RoleMixin):
     id = db.Column(db.Integer(), primary_key=True)
@@ -36,8 +48,10 @@ class User(db.Model, UserMixin):
     phone = db.Column(db.String(255))
     avatar = db.Column(db.String(255))
     about = db.Column(db.String(255))
-    category_id = db.Column(db.Integer)
-    city_id = db.Column(db.Integer)
+    category_id = db.relationship('Category', secondary=users_category,
+                            backref=db.backref('users', lazy='dynamic'))
+    city_id = db.relationship('City', secondary=users_city,
+                            backref=db.backref('users', lazy='dynamic'))
     active = db.Column(db.Boolean(), default = True)
     banned = db.Column(db.Boolean(), default = False)
     is_verified = db.Column(db.Boolean(), default = False)
@@ -58,11 +72,44 @@ class User(db.Model, UserMixin):
                 'phone' : self.phone,
                 'avatar' : self.avatar,
                 'about' : self.about,
-                'category_id' : self.category_id,
-                'city_id' : self.city_id,
+                'category_id' : self.category_id[0],
+                'city_id' : self.city_id[0],
                 'plan_date' : plan_date,
-                'roles' : self.roles,
+                'roles' : self.roles[0],
                 'token' : token
             }
 
 
+
+class City (db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    name = db.Column(db.String(255), nullable=False)
+
+    def __str__(self):
+        return self.name
+
+    @property
+    def serialize (self):
+        return {
+                "id" : self.id,
+                "name" : self.name
+            }
+
+
+class Category(db.Model):
+    id = db.Column(db.Integer(), primary_key=True)
+    name = db.Column(db.String(80), unique=True)
+    description = db.Column(db.String(255))
+    parent_id = db.Column(db.Integer())
+
+    def __str__(self):
+        return self.name
+
+    @property
+    def serialize (self):
+        return {
+                "id" : self.id,
+                "name" : self.name,
+                "description" : self.description,
+                "parent_id" : self.parent_id
+            }

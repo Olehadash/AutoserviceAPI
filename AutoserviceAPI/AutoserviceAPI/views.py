@@ -52,6 +52,14 @@ class UserView(MyModelView):
         'password': PasswordField
     }
 
+class CityView(MyModelView):
+    column_editable_list = ['name']
+    column_searchable_list = column_editable_list
+
+class CategoryView(MyModelView):
+    column_editable_list = ['name']
+    column_searchable_list = column_editable_list
+
 
 class CustomView(BaseView):
     @expose('/')
