@@ -3,7 +3,7 @@ This script runs the AutoserviceAPI application using a development server.
 """
 
 import os
-from AutoserviceAPI import app, build_sample_db
+from AutoserviceAPI import app, build_sample_db, socketio 
 
 if __name__ == '__main__':
 
@@ -14,4 +14,4 @@ if __name__ == '__main__':
         build_sample_db()
 
     # Start app
-    app.run(debug=True)
+    socketio.run(app, host = '0.0.0.0', port = 8080)

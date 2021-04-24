@@ -32,7 +32,13 @@
     <Compile Include="AutoserviceAPI\mobile_authorization.py">
       <SubType>Code</SubType>
     </Compile>
+    <Compile Include="AutoserviceAPI\mobile_chat.py">
+      <SubType>Code</SubType>
+    </Compile>
     <Compile Include="AutoserviceAPI\mobile_info.py">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="AutoserviceAPI\mobile_order.py">
       <SubType>Code</SubType>
     </Compile>
     <Compile Include="AutoserviceAPI\model.py">

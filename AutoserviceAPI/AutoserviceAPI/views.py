@@ -51,6 +51,9 @@ class UserView(MyModelView):
     form_overrides = {
         'password': PasswordField
     }
+class OrdersView(MyModelView):
+    column_editable_list = ['user_id', 'category_id']
+    column_searchable_list = column_editable_list
 
 class CityView(MyModelView):
     column_editable_list = ['name']

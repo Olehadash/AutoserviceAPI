@@ -1,34 +1,79 @@
 from AutoserviceAPI import app, db, allowed_file, login_manager, start_verification, check_verification, user_datastore
-from flask import Flask, url_for, redirect, render_template, request, abort, jsonify
-from AutoserviceAPI.model import User, Role, City, Category
+from flask import Flask, url_for, redirect, render_template, request, abort, jsonify, session
+from AutoserviceAPI.model import User, Role, City, Category, Images
 from flask_login import login_user, logout_user, login_required
 from flask_jwt_extended import create_access_token, jwt_required, get_jwt_identity
 from werkzeug.security import generate_password_hash, check_password_hash
+import io
+from PIL import Image
 
 @app.route('/signin', methods=['POST'])
 def signin():
-    email = request.form.get('email')
-    password = request.form.get('password')
+    phone = request.form.get('phone')
+    session['phone'] = phone;
+    session["deviceid"] = request.form.get('deviceid')
+    start_verification(phone)
+    
+    return jsonify(msg = 'Mesaage Sended.'), 200
 
-    user = User.query.filter_by(email=email).first()
+@app.route('/login', methods=['POST'])
+def login():
+    phone = request.form.get('phone')
+    deviceid = request.form.get('deviceid')
 
-    if not user:
-        return jsonify(msg = 'Please check your login details and try again.'), 401
+    user = User.query.filter_by(phone=phone).first()
 
-    if not check_password_hash(user.password, password):
-        return jsonify(msg = 'Please check your password details and try again.'), 401
+    if user.deviceid != deviceid:
+        return jsonify(msg = "Device unverifaed"), 200
 
     login_user(user)
-    token = create_access_token(identity = user.email)
-
-
-    return jsonify(user.serialize(token)), 200
+    token = create_access_token(identity = user.phone)
+    
+    return jsonify(user.serialize(token)),200
 
 @app.route('/signup', methods=['POST'])
 def signup():
     name = request.form.get('name')
     email = request.form.get('email')
-    password = request.form.get('password')
+    phone = request.form.get('phone')
+    avatar = request.form.get('avatar')
+    about = request.form.get('about')
+    category_id = request.form.get('category_id')
+    city_id = request.form.get('city_id')
+    roles = request.form.get('roles')
+    images = request.form.get('images')
+    plan_date = request.form.get('plan_date')
+
+
+    user = User.query.filter_by(phone=phone).first()
+
+    if not user:
+        if avatar == "":
+            avatar = 'noavatar.jpg'
+        images = Images(url = avatar)
+        db.session.add(images)
+
+        user = user_datastore.create_user(
+            phone=phone, 
+            name = name, 
+            email = email, 
+            about = about,
+            avatar = avatar,
+            category_id = category_id, 
+            city_id = city_id, 
+            role = roles
+        )
+    db.session.commit()
+    login_user(user)
+    user.tokken = str(create_access_token(identity = phone))
+
+    return jsonify(user.serialize),200
+
+@app.route('/user_update', methods=['POST'])
+@jwt_required()
+def user_update():
+    name = request.form.get('name')
+    email = request.form.get('email')
     phone = request.form.get('phone')
     avatar = request.form.get('avatar')
     about = request.form.get('about')
@@ -37,16 +82,8 @@ def signup():
     roles = request.form.get('roles')
 
     user = User.query.filter_by(email=email).first()
-    
-    if user:
-        return jsonify(msg = 'Email address already exists.'), 400
-
-    user = User.query.filter_by(phone=phone).first()
-    if user:
-        return jsonify(msg = 'Phone adress already exists.'), 400
-
-    if avatar == "":
-        avatar = 'noavatar.jpg'
+    if not user:
+        return jsonify(msg = "User not Exist"), 400
 
     user_role = Role(name='customer')
     cid = []
@@ -56,34 +93,24 @@ def signup():
         cid = [City.query.filter_by(id = city_id).first()]
         caid = [City.query.filter_by(id = category_id).first()]
 
-    new_user = user_datastore.create_user(
-        email=email, 
-        name=name, 
-        password=generate_password_hash(password, method='sha256'), 
-        phone=phone, 
-        avatar=avatar, 
-        about=about, 
-        category_id = caid, 
-        city_id = cid, 
-        roles=[user_role]
-    )
+    user.name = name
+    user.email = email
+    user.phone = phone
+    user.avatar = avatar
+    user.about = about
+    user.category_id = cid
+    user.city_id = cid
+    user.roles = [user_role]
 
-    print("Phone : %s", phone)
-    
-    start_verification(phone)
-    session['phone'] = phone
-
-    db.session.add(new_user)
-    db.session.commit()
-
-    return jsonify(msg ="User Created"),200
+    return jsonify(msg = "User updated"), 200
 
 @app.route('/load_file', methods=["PUT"])
 def load_file():
-    for file in request.files:
-        if file and allowed_file(file.filename) and file.filename != '':
-            filename = secure_filename(file.filename)
-            file.save(os.path.join(app.config['UPLOAD_FOLDER'], filename))
+    name = request.form.get('name')
+    file = Image.open(io.BytesIO(request.get_data()))
+    file.save(os.path.join(app.config['UPLOAD_FOLDER'], name))
+    return jsonify(msg = "Loaded"),200
+
 
 @app.route('/uploads/<filename>', methods=["GET"])
 def uploaded_file(filename):
@@ -94,15 +121,18 @@ def uploaded_file(filename):
 def verify():
     phone = session.get('phone')
     code = request.form['code']
-    user = User.query.filter_by(email=email).first()
-    if not user:
-        return jsonify(msg = 'Please check your login details and try again.'), 401
+
+    if session["deviceid"] != request.form.get('deviceid'):
+        return jsonify(msg = "Устройсво не Верефецированно"), 401
+
+    user = User.query.filter_by(phone=phone).first()
+    user.deviceid = request.form.get('deviceid')
+    db.session.commit()
 
     if check_verification(phone, code):
-        user.is_vetified = True;
-        db.session.commit()
         return jsonify (msg = "Verified"), 200
-    return jsonify (msg = "Verification Error"), 400
+    else:
+        return jsonify (msg = "Verification Error"), 400
 
 @app.route('/resend', methods=["POST"])
 def resend():

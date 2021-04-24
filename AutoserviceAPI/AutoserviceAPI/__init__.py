@@ -12,6 +12,8 @@ from wtforms import PasswordField
 from werkzeug.middleware.shared_data import SharedDataMiddleware
 from flask_bcrypt import Bcrypt
 from twilio.rest import Client
+from flask_socketio import SocketIO
+from flask_jwt_extended import JWTManager
 
 # Create Flask application
 app = Flask(__name__)
@@ -19,17 +21,19 @@ app.config.from_pyfile('config.py')
 db = SQLAlchemy(app)
 login_manager = LoginManager(app)
 bcrypt = Bcrypt(app)
+jwt = JWTManager(app)
+socketio = SocketIO(app, logger=True, engineio_logger=True)
 
 # Initialize Twilio client
 client = Client(app.config['TWILIO_ACCOUNT_SID'], app.config['TWILIO_AUTH_TOKEN'])
 
-from AutoserviceAPI.model import Role, User, City, Category
+from AutoserviceAPI.model import Role, User, City, Category, Order
 
 # Setup Flask-Security
 user_datastore = SQLAlchemyUserDatastore(db, User, Role)
 security = Security(app, user_datastore)
 
-from AutoserviceAPI.views import MyModelView, UserView, CustomView, CityView, CategoryView
+from AutoserviceAPI.views import MyModelView, UserView, CustomView, CityView, CategoryView, OrdersView
 
 # url rule for uppload
 app.add_url_rule('/uploads/<filename>', 'uploaded_file',
@@ -60,6 +64,7 @@ admin.add_view(MyModelView(Role, db.session, menu_icon_type='fa', menu_icon_valu
 admin.add_view(UserView(User, db.session, menu_icon_type='fa', menu_icon_value='fa-users', name="Users"))
 admin.add_view(CityView(City, db.session, menu_icon_type='fa', menu_icon_value='fa-building', name="City"))
 admin.add_view(CategoryView(Category, db.session, menu_icon_type='fa', menu_icon_value='fa-cubes', name="Category"))
+admin.add_view(OrdersView(Order, db.session, menu_icon_type='fa', menu_icon_value='fa-newspaper-o', name="Orders"))
 
 # define a context processor for merging flask-admin's template context into the
 # flask-security views.
@@ -88,12 +93,16 @@ def build_sample_db():
         executor_role = Role (name='executor')
         super_user_role = Role(name='superuser')
         db.session.add(user_role)
+        db.session.add(executor_role)
         db.session.add(super_user_role)
         db.session.commit()
 
         test_user = user_datastore.create_user(
             name='Admin',
             email='admin',
+            phone='+9989',
+            city_id = 0,
+            category_id = 0,
             password=encrypt_password('admin'),
             roles=[super_user_role]
         )
@@ -169,7 +178,7 @@ def start_verification(to, channel='sms'):
     verify.verifications.create(to=to, channel=channel)
 
 def check_verification(phone, code):
-    service = app.config.get("TWILIO_ACCOUNT_SID")
+    service = app.config.get("TWILLO_VERUFY_SID")
     
     try:
         verification_check = client.verify \
@@ -188,3 +197,4 @@ def check_verification(phone, code):
 
 import AutoserviceAPI.mobile_authorization
 import AutoserviceAPI.mobile_info
+import AutoserviceAPI.mobile_order
