@@ -1,3 +1,7 @@
+
+#! /var/www/adamovproject.pp.ua/web/virtenv/bin python
+# -*- coding: utf-8 -*-
+
 from AutoserviceAPI import app, db, allowed_file, login_manager, start_verification, check_verification, user_datastore
 from flask import Flask, url_for, redirect, render_template, request, abort, jsonify, session
 from AutoserviceAPI.model import User, Role, City, Category, Images
@@ -61,6 +65,7 @@ def signup():
             avatar = avatar,
             category_id = category_id, 
             city_id = city_id, 
+            deviceid = session["deviceid"],
             role = roles
         )
     db.session.commit()
@@ -81,7 +86,7 @@ def user_update():
     city_id = request.form.get('city_id')
     roles = request.form.get('roles')
 
-    user = User.query.filter_by(email=email).first()
+    user = User.query.filter_by(phone=phone).first()
     if not user:
         return jsonify(msg = "User not Exist"), 400
 
@@ -101,6 +106,7 @@ def user_update():
     user.category_id = cid
     user.city_id = cid
     user.roles = [user_role]
+    user.deviceid = session["deviceid"]
 
     return jsonify(msg = "User updated"), 200
 
@@ -121,13 +127,15 @@ def uploaded_file(filename):
 def verify():
     phone = session.get('phone')
     code = request.form['code']
+    deviceid = request.form.get('deviceid')
 
     if session["deviceid"] != request.form.get('deviceid'):
         return jsonify(msg = "Устройсво не Верефецированно"), 401
 
     user = User.query.filter_by(phone=phone).first()
-    user.deviceid = request.form.get('deviceid')
-    db.session.commit()
+    if user:
+        user.deviceid = deviceid
+        db.session.commit()
 
     if check_verification(phone, code):
         return jsonify (msg = "Verified"), 200

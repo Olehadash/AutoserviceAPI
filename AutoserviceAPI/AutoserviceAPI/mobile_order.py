@@ -1,3 +1,5 @@
+#! /var/www/adamovproject.pp.ua/web/virtenv/bin python
+# -*- coding: utf-8 -*-
 from AutoserviceAPI import app, db, allowed_file, login_manager, start_verification, check_verification, user_datastore, jwt
 from flask import Flask, url_for, redirect, render_template, request, abort, jsonify
 from AutoserviceAPI.model import User, Role, City, Category, Order, Recalls

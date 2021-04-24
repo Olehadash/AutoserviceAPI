@@ -1,7 +1,5 @@
-"""
-This script runs the AutoserviceAPI application using a development server.
-"""
-
+#! /var/www/adamovproject.pp.ua/web/virtenv/bin python
+# -*- coding: utf-8 -*-
 import os
 from AutoserviceAPI import app, build_sample_db, socketio 
 

@@ -88,6 +88,7 @@ class User(db.Model, UserMixin):
                 "city_id" : self.city_id,
                 "plan_date" : str(self.plan_date),
                 "roles" : self.role,
+                "deviceid" : self.deviceid,
                 "token" : self.tokken
             }
 

@@ -1,3 +1,5 @@
+#! /var/www/adamovproject.pp.ua/web/virtenv/bin python
+# -*- coding: utf-8 -*-
 from flask import Flask, url_for, redirect, render_template, request, abort
 from flask_sqlalchemy import SQLAlchemy
 from flask_security import Security, SQLAlchemyUserDatastore, \
@@ -146,7 +148,7 @@ def build_sample_db():
             {"name": "Аргонная сварка", "description": "Сварочные работы, КЕМПИ", "parent_id": 4},
             {"name": "Электронная диагностика автомашины", "description": "Электронная диагностика автомашины", "parent_id": 12},
             {"name": "Автозапчасти", "description": "Автозапчасти", "parent_id": 0},
-            { "name": "Авторазбор", "description": "Склад  автомобильных запчастей", "parent_id": 18},
+            {"name": "Авторазбор", "description": "Склад  автомобильных запчастей", "parent_id": 18},
             {"name": "Электроника", "description": "Фары, противотуманки, электропроводка, внутреннее освещение и кондиционер", "parent_id": 18},
             {"name": "Тормозная система", "description": "Диски, колодки, шланги, суппорты и цилиндр", "parent_id": 18},
             {"name": "Жидкости", "description": "Моторное масло, трансмиссионное масло, тормозная жидкость, антифриз, смазки и т.д.","parent_id": 18},
